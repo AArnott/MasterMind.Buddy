@@ -13,6 +13,7 @@ steps:
     arguments: --no-build -c $(BuildConfiguration) -f net472 --filter "TestCategory!=FailsInCloudTest" -v n /p:CollectCoverage=true --settings "$(Build.Repository.LocalPath)/azure-pipelines/$(Agent.OS).runsettings"
     testRunTitle: net472-$(Agent.JobName)
   condition: and(succeeded(), eq(variables['Agent.OS'], 'Windows_NT'))
+  enabled: false
 
 - task: DotNetCoreCLI@2
   displayName: dotnet test -f netcoreapp2.1
@@ -20,6 +21,7 @@ steps:
     command: test
     arguments: --no-build -c $(BuildConfiguration) -f netcoreapp2.1 --filter "TestCategory!=FailsInCloudTest" -v n /p:CollectCoverage=true --settings "$(Build.Repository.LocalPath)/azure-pipelines/$(Agent.OS).runsettings"
     testRunTitle: netcoreapp2.1-$(Agent.JobName)
+  enabled: false
 
 - task: DotNetCoreCLI@2
   displayName: dotnet test -f netcoreapp3.1
