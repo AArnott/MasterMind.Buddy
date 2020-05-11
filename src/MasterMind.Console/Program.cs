@@ -93,9 +93,10 @@ namespace MasterMind.Console
         {
             var builder = Rules.CreateSolutionBuilder();
 
+            int breakerAttemptsCount = 0;
             while (true)
             {
-                ReadOnlyMemory<CodeColor> guess = InputCode("Input your guess");
+                ReadOnlyMemory<CodeColor> guess = InputCode($"Input guess #{++breakerAttemptsCount}: ");
                 Response response = InputResponse();
                 builder.AddResponse(guess, response);
 
@@ -108,6 +109,53 @@ namespace MasterMind.Console
                 }
 
                 Console.WriteLine($"{analysis.ViableSolutionsFound} solutions remaining.");
+
+                PrintProbabilities(analysis);
+                PrintSuggestedGuess(builder, CancellationToken.None);
+            }
+        }
+
+        private static void PrintSuggestedGuess(SolutionBuilder<CodeColor> builder, CancellationToken cancellationToken)
+        {
+            Scenario<CodeColor>? scenario = builder.GetProbableSolution(cancellationToken);
+            Console.WriteLine("A reasonable next guess: {0}", string.Join(", ", scenario.NodeStates));
+        }
+
+        private static void PrintProbabilities(SolutionBuilder<CodeColor>.SolutionsAnalysis analysis)
+        {
+            // Sample grid printout:
+            //
+            //                 1    2    3     4
+            // Magenta      100%  80%
+            // Purple         0%  20%
+            // Yellow         0%   0%
+            // Teal
+            // White
+            // Orange
+            string[] colorNames = Enum.GetNames(typeof(CodeColor));
+            int maxColorLength = colorNames.Select(n => n.Length).Max();
+            const int positionColumnWidth = 5;
+
+            // Print header row with card names
+            Console.Write(new string(' ', maxColorLength + 1));
+            for (int position = 1; position <= Rules.CodeSize; position++)
+            {
+                Console.Write($"{position,-positionColumnWidth}");
+            }
+
+            Console.WriteLine();
+
+            for (int i = 0; i < Rules.ColorCount; i++)
+            {
+                Console.Write("{0,-" + (maxColorLength + 1) + "}", colorNames[i]);
+                for (int j = 0; j < Rules.CodeSize; j++)
+                {
+                    int percent = (int)(analysis.GetNodeValueCount(j, (CodeColor)i) * 100 / analysis.ViableSolutionsFound);
+                    string percentWithUnits = percent.ToString(CultureInfo.CurrentCulture) + "%";
+                    Console.Write($"{percentWithUnits,-positionColumnWidth}");
+                }
+
+                Console.WriteLine();
             }
         }
 
