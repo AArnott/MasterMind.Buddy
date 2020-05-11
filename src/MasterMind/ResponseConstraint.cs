@@ -5,6 +5,7 @@ namespace MasterMind
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using Microsoft;
     using Nerdbank.Algorithms.NodeConstraintSelection;
 
@@ -36,27 +37,71 @@ namespace MasterMind
         {
             Requires.NotNull(scenario, nameof(scenario));
 
-            Response response = Rules.CreateResponse(this.guess.Span, default);
-            ConstraintStates result = ConstraintStates.None;
-
-            if (this.response.Equals(response))
+            // First determine state of Resolved flag.
+            int indeterminateNodeCount = 0;
+            int exactMatches = 0;
+            for (int i = 0; i < this.Nodes.Count; i++)
             {
-                result |= ConstraintStates.Satisfied;
+                if (scenario[i] is null)
+                {
+                    indeterminateNodeCount++;
+                }
+
+                if (scenario[i] == this.guess.Span[i])
+                {
+                    exactMatches++;
+                }
             }
 
-            bool anyUnresolved = false;
-            for (int i = 0; i < scenario.NodeCount; i++)
-            {
-                anyUnresolved |= !scenario[i].HasValue;
-            }
+            var result = ConstraintStates.None;
 
-            if (anyUnresolved)
-            {
-                result |= ConstraintStates.Satisfiable;
-            }
-            else
+            if (indeterminateNodeCount == 0)
             {
                 result |= ConstraintStates.Resolved;
+            }
+
+            // If the guess was completely wrong, then we know that no color used in the guess
+            // can possibly be in the solution.
+            if (this.response.RedCount == 0 && this.response.WhiteCount == 0)
+            {
+                for (int i = 0; i < Rules.CodeSize; i++)
+                {
+                    for (int j = 0; j < Rules.CodeSize; j++)
+                    {
+                        if (scenario[i] == this.guess.Span[j])
+                        {
+                            // Unsatisfiable result.
+                            return result;
+                        }
+                    }
+                }
+            }
+
+            // If the number of exact matches exceeds the red count, we're already broken.
+            if (exactMatches > this.response.RedCount)
+            {
+                return result;
+            }
+
+            // So long as *any* nodes are undetermined they can be made to not match the guess.
+            if (indeterminateNodeCount > 0)
+            {
+                result |= ConstraintStates.Breakable;
+            }
+
+            if (exactMatches + indeterminateNodeCount >= this.response.RedCount)
+            {
+                result |= ConstraintStates.Satisfiable;
+
+                if (indeterminateNodeCount > 0 && exactMatches + indeterminateNodeCount == this.response.RedCount)
+                {
+                    result |= ConstraintStates.Resolvable;
+                }
+            }
+
+            if (indeterminateNodeCount == 0 && (result & ConstraintStates.Satisfiable) == ConstraintStates.Satisfiable)
+            {
+                result |= ConstraintStates.Satisfied;
             }
 
             return result;
@@ -88,6 +133,22 @@ namespace MasterMind
         }
 
         /// <inheritdoc/>
-        public bool Resolve(Scenario<CodeColor> scenario) => false;
+        public bool Resolve(Scenario<CodeColor> scenario)
+        {
+            if ((this.GetState(scenario) & ConstraintStates.Resolvable) == ConstraintStates.Resolvable)
+            {
+                for (int i = 0; i < this.guess.Length; i++)
+                {
+                    if (scenario[i] is null)
+                    {
+                        scenario[i] = this.guess.Span[i];
+                    }
+                }
+
+                return true;
+            }
+
+            return false;
+        }
     }
 }
