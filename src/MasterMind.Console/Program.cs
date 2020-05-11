@@ -5,7 +5,7 @@ namespace MasterMind.Console
 {
     using System;
     using System.Collections.Generic;
-    using System.Collections.Immutable;
+    using System.Drawing;
     using System.Globalization;
     using System.Linq;
     using System.Text.RegularExpressions;
@@ -27,15 +27,80 @@ namespace MasterMind.Console
 
         private static void Main()
         {
+            Console.Write("What role are you playing (M = Code _Maker, B = Code _Breaker)? ");
+            while (true)
+            {
+                switch (char.ToUpper(Console.ReadKey().KeyChar, CultureInfo.CurrentCulture))
+                {
+                    case 'M':
+                        Console.WriteLine("Code maker");
+                        CodeMaker();
+                        return;
+                    case 'B':
+                        Console.WriteLine("Code breaker");
+                        CodeBreaker();
+                        return;
+                }
+            }
+        }
+
+        private static void CodeMaker()
+        {
+            CodeColor[] code = new CodeColor[Rules.CodeSize];
+            while (true)
+            {
+                Console.Write("Enter code (or leave blank to generate one): ");
+                string codeLine = Console.ReadLine();
+                if (codeLine.Length == 0)
+                {
+                    var random = new Random();
+                    for (int i = 0; i < code.Length; i++)
+                    {
+                        code[i] = (CodeColor)random.Next(Rules.ColorCount);
+                    }
+
+                    break;
+                }
+                else if (TryParseCode(codeLine, code))
+                {
+                    break;
+                }
+            }
+
+            Console.WriteLine("Your code is: {0}", string.Join(", ", code));
+
+            int breakerAttemptsCount = 0;
+            while (true)
+            {
+                ReadOnlySpan<CodeColor> guess = InputCode("What is the code breaker's guess?").Span;
+                var response = Rules.CreateResponse(guess, code);
+                Console.WriteLine($"{response.RedCount} red pins, {response.WhiteCount} white pins.");
+                if (response.RedCount == Rules.CodeSize)
+                {
+                    Console.WriteLine("Game over. Code breaker wins.");
+                    break;
+                }
+
+                if (++breakerAttemptsCount == 10)
+                {
+                    Console.WriteLine("Game over. YOU win.");
+                    break;
+                }
+            }
+        }
+
+        private static void CodeBreaker()
+        {
             var builder = Rules.CreateSolutionBuilder();
 
             while (true)
             {
-                ReadOnlyMemory<CodeColor> guess = InputGuess();
+                ReadOnlyMemory<CodeColor> guess = InputCode("Input your guess");
                 Response response = InputResponse();
-                builder.AddConstraint(new ResponseConstraint(guess, response));
+                builder.AddResponse(guess, response);
 
-                SolutionBuilder<CodeColor>.SolutionsAnalysis? analysis = builder.AnalyzeSolutions(CancellationToken.None);
+                SolutionBuilder<CodeColor>.SolutionsAnalysis analysis = builder.AnalyzeSolutions(CancellationToken.None);
+                analysis.ApplyAnalysisBackToBuilder();
                 if (analysis.ViableSolutionsFound == 1)
                 {
                     Console.WriteLine("Solution found!");
@@ -46,24 +111,33 @@ namespace MasterMind.Console
             }
         }
 
-        private static ReadOnlyMemory<CodeColor> InputGuess()
+        private static bool TryParseCode(string input, Span<CodeColor> code)
+        {
+            if (GuessPattern.IsMatch(input))
+            {
+                for (int i = 0; i < code.Length; i++)
+                {
+                    code[i] = CodeColorsByFirstLetter[char.ToUpper(input[i], CultureInfo.CurrentCulture)];
+                }
+
+                return true;
+            }
+
+            Console.WriteLine("Invalid input. Specify four characters, each representing the first letter of a color.");
+            return false;
+        }
+
+        private static ReadOnlyMemory<CodeColor> InputCode(string prompt)
         {
             var guess = new CodeColor[Rules.CodeSize];
             while (true)
             {
-                Console.Write($"Input your guess ({ColorChoices}): ");
+                Console.Write($"{prompt} ({ColorChoices}): ");
                 string guessLine = Console.ReadLine();
-                if (GuessPattern.IsMatch(guessLine))
+                if (TryParseCode(guessLine, guess))
                 {
-                    for (int i = 0; i < guess.Length; i++)
-                    {
-                        guess[i] = CodeColorsByFirstLetter[char.ToUpper(guessLine[i], CultureInfo.CurrentCulture)];
-                    }
-
                     return guess;
                 }
-
-                Console.WriteLine("Invalid input. Specify four characters, each representing the first letter of a color.");
             }
         }
 
