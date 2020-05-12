@@ -94,11 +94,17 @@ jobs:
         path: obj/_artifacts/symbols
       if: runner.os == 'Windows'
       continue-on-error: true
-    - name: Upload deployables
+    - name: Upload packages
       uses: actions/upload-artifact@v1
       with:
-        name: deployables
-        path: obj/_artifacts/deployables
+        name: packages
+        path: obj/_artifacts/packages
+      if: always() && runner.os == 'Windows'
+    - name: Upload consoleapp
+      uses: actions/upload-artifact@v1
+      with:
+        name: consoleapp
+        path: obj/_artifacts/consoleapp
       if: always() && runner.os == 'Windows'
     - name: Publish code coverage results to codecov.io
       run: bash <(curl -s https://codecov.io/bash)
