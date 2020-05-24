@@ -48,5 +48,8 @@ namespace MasterMind
 
         /// <inheritdoc/>
         public override int GetHashCode() => this.RedCount + this.WhiteCount;
+
+        /// <inheritdoc/>
+        public override string ToString() => $"Red: {this.RedCount}, White: {this.WhiteCount}";
     }
 }
