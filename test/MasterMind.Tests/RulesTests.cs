@@ -57,4 +57,30 @@ public class RulesTests : TestBase
     {
         Assert.NotSame(Rules.CreateSolutionBuilder(), Rules.CreateSolutionBuilder());
     }
+
+    [Fact]
+    public void MakeCode_Empty()
+    {
+        Rules.MakeCode(default);
+    }
+
+    [Fact]
+    public void MakeCode_RegularLength()
+    {
+        var code1 = new CodeColor[Rules.CodeSize];
+        Rules.MakeCode(code1);
+        this.Logger.WriteLine(string.Join(", ", code1));
+
+        var code2 = new CodeColor[Rules.CodeSize];
+        Rules.MakeCode(code2);
+        this.Logger.WriteLine(string.Join(", ", code2));
+
+        Assert.NotEqual<CodeColor>(code1, code2);
+    }
+
+    [Fact]
+    public void MakeCode_NoArgs()
+    {
+        Assert.NotEqual<CodeColor>(Rules.MakeCode().ToArray(), Rules.MakeCode().ToArray());
+    }
 }

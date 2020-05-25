@@ -42,6 +42,30 @@ namespace MasterMind
         }
 
         /// <summary>
+        /// Initializes a code with a random choice of colors.
+        /// </summary>
+        /// <param name="code">The code to initialize.</param>
+        public static void MakeCode(Span<CodeColor> code)
+        {
+            var random = new Random();
+            for (int i = 0; i < code.Length; i++)
+            {
+                code[i] = (CodeColor)random.Next(ColorCount);
+            }
+        }
+
+        /// <summary>
+        /// Initializes a new code with a random choice of colors.
+        /// </summary>
+        /// <returns>The randomly generated code.</returns>
+        public static ReadOnlyMemory<CodeColor> MakeCode()
+        {
+            var code = new CodeColor[CodeSize];
+            MakeCode(code);
+            return code;
+        }
+
+        /// <summary>
         /// Adds a response to the game.
         /// </summary>
         /// <param name="builder">The builder to add the response's generated constraint to.</param>

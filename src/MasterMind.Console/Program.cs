@@ -53,12 +53,7 @@ namespace MasterMind.Console
                 string codeLine = Console.ReadLine();
                 if (codeLine.Length == 0)
                 {
-                    var random = new Random();
-                    for (int i = 0; i < code.Length; i++)
-                    {
-                        code[i] = (CodeColor)random.Next(Rules.ColorCount);
-                    }
-
+                    Rules.MakeCode(code);
                     break;
                 }
                 else if (TryParseCode(codeLine, code))
