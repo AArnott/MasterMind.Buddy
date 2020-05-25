@@ -99,6 +99,48 @@ public class ResponseConstraintTests
     }
 
     [Fact]
+    public void GetState_3Red1White_Breakable()
+    {
+        var constraint = new ResponseConstraint(new[] { Orange, Yellow, Teal, Purple }, new Response { RedCount = 3, WhiteCount = 1 });
+        Assert.Equal(ConstraintStates.Satisfiable | ConstraintStates.Breakable, constraint.GetState(GetScenario(Orange, Yellow, null, null)));
+    }
+
+    [Fact]
+    public void GetState_3Red1White_Broken()
+    {
+        var constraint = new ResponseConstraint(new[] { Orange, Yellow, Teal, Purple }, new Response { RedCount = 3, WhiteCount = 1 });
+        Assert.Equal(ConstraintStates.None, constraint.GetState(GetScenario(Orange, Yellow, Magenta, null)));
+    }
+
+    [Fact]
+    public void GetState_4White_Broken()
+    {
+        var constraint = new ResponseConstraint(new[] { Orange, Yellow, Teal, Purple }, new Response { WhiteCount = 4 });
+        Assert.Equal(ConstraintStates.None, constraint.GetState(GetScenario(Magenta, null, null, null)));
+    }
+
+    [Fact, Trait("Invalid", "true")]
+    public void GetState_4White_AllOneColor()
+    {
+        // When the guess is all one color, and the response says that the right colors are used but in the wrong positions,
+        // that's a contradiction because 1 color cannot be rearranged.
+        // This should immediately be seen as a broken game, even with an empty guess.
+        var constraint = new ResponseConstraint(new[] { Yellow, Yellow, Yellow, Yellow }, new Response { WhiteCount = 4 });
+        Assert.Equal(ConstraintStates.None, constraint.GetState(GetScenario(null, null, null, null)));
+    }
+
+    [Fact, Trait("Invalid", "true")]
+    public void GetState_4White_TwoColors()
+    {
+        // When the colors are all right but the positions are all wrong, yet we have 3 of one color and 1 of another,
+        // that's a contradiction because there are only 3 other possible permutations and they all involve two positions remainin the same,
+        // so we ought to have 2 red pins if the answer really has 3 yellows and 1 orange.
+        // This should immediately be seen as a broken game, even with an empty guess.
+        var constraint = new ResponseConstraint(new[] { Yellow, Yellow, Orange, Yellow }, new Response { WhiteCount = 4 });
+        Assert.Equal(ConstraintStates.None, constraint.GetState(GetScenario(null, null, null, null)));
+    }
+
+    [Fact]
     public void GetState_TwoReds()
     {
         var constraint = new ResponseConstraint(new[] { Orange, Yellow, Teal, Purple }, new Response { RedCount = 2 });

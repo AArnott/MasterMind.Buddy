@@ -38,8 +38,10 @@ namespace MasterMind
             Requires.NotNull(scenario, nameof(scenario));
 
             // First determine state of Resolved flag.
+            // Count number and locations of exact matches while we're at it.
             int indeterminateNodeCount = 0;
             int exactMatches = 0;
+            var exactMatchPositions = new List<int>(this.Nodes.Count);
             for (int i = 0; i < this.Nodes.Count; i++)
             {
                 if (scenario[i] is null)
@@ -50,6 +52,43 @@ namespace MasterMind
                 if (scenario[i] == this.guess.Span[i])
                 {
                     exactMatches++;
+                    exactMatchPositions.Add(i);
+                }
+            }
+
+            // Count how many pins we have whose color is found in the solution but a different position.
+            var colorMatchesInWrongPositions = 0;
+            var misplacedColorPositionsClaimed = new List<int>(this.Nodes.Count);
+            for (int i = 0; i < this.Nodes.Count; i++)
+            {
+                if (scenario[i] is null || exactMatchPositions.Contains(i))
+                {
+                    continue;
+                }
+
+                // Look at the color in every OTHER position to see if we find a color match.
+                for (int j = 0; j < this.Nodes.Count; j++)
+                {
+                    // Do not consider the same position.
+                    if (i == j)
+                    {
+                        continue;
+                    }
+
+                    // If the color doesn't match, it's not a candidate.
+                    if (scenario[i] != this.guess.Span[j])
+                    {
+                        continue;
+                    }
+
+                    // We cannot consider the position if it was claimed as an exact match or an inexact match already.
+                    if (exactMatchPositions.Contains(j) || misplacedColorPositionsClaimed.Contains(j))
+                    {
+                        continue;
+                    }
+
+                    misplacedColorPositionsClaimed.Add(j);
+                    colorMatchesInWrongPositions++;
                 }
             }
 
@@ -79,6 +118,18 @@ namespace MasterMind
 
             // If the number of exact matches exceeds the red count, we're already broken.
             if (exactMatches > this.response.RedCount)
+            {
+                return result;
+            }
+
+            // Consider the number of white pins
+            if (colorMatchesInWrongPositions > this.response.WhiteCount)
+            {
+                return result;
+            }
+
+            // If the scenario is resolved, then we demand an exact match of red and white pins.
+            if (indeterminateNodeCount == 0 && (exactMatches != this.response.RedCount || colorMatchesInWrongPositions != this.response.WhiteCount))
             {
                 return result;
             }
