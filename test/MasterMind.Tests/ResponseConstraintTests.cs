@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using MasterMind;
 using Nerdbank.Algorithms.NodeConstraintSelection;
@@ -148,8 +149,58 @@ public class ResponseConstraintTests
         Assert.Equal(ConstraintStates.Resolved, constraint.GetState(GetScenario(Yellow, Orange, Yellow, Orange)));
     }
 
-    [DebuggerStepThrough]
-    private static Scenario<CodeColor> GetScenario(params CodeColor?[] content)
+    /// <summary>
+    /// For some random code, enumerate every single guess, calculate an appropriate response with <see cref="Rules.CreateResponse(ReadOnlySpan{CodeColor}, ReadOnlySpan{CodeColor})"/>,
+    /// and verify that our constraint considers the correct solution to be compatible with that response.
+    /// </summary>
+    [Fact]
+    public void ExhaustiveSatisfiedResolvedScenarioComparisons()
+    {
+        ReadOnlyMemory<CodeColor> code = Rules.MakeCode();
+        var guess = new CodeColor[Rules.CodeSize];
+        foreach (bool combination in EnumerateAllSolutions(guess.AsMemory()))
+        {
+            Response response = Rules.CreateResponse(guess, code.Span);
+            var constraint = new ResponseConstraint(guess, response);
+            Assert.Equal(ConstraintStates.Resolved | ConstraintStates.Satisfied, constraint.GetState(GetScenario(code.Span)));
+        }
+    }
+
+    private static IEnumerable<bool> EnumerateAllSolutions(Memory<CodeColor> memory)
+    {
+        for (int position = 0; position < memory.Length; position++)
+        {
+            for (int colorIndex = 0; colorIndex < Rules.ColorCount; colorIndex++)
+            {
+                memory.Span[position] = (CodeColor)colorIndex;
+
+                if (memory.Length > 1)
+                {
+                    foreach (bool combination in EnumerateAllSolutions(memory.Slice(1)))
+                    {
+                        yield return true;
+                    }
+                }
+                else
+                {
+                    yield return true;
+                }
+            }
+        }
+    }
+
+    private static Scenario<CodeColor> GetScenario(ReadOnlySpan<CodeColor> content)
+    {
+        var span = new CodeColor?[content.Length];
+        for (int i = 0; i < content.Length; i++)
+        {
+            span[i] = content[i];
+        }
+
+        return GetScenario(span);
+    }
+
+    private static Scenario<CodeColor> GetScenario(ReadOnlySpan<CodeColor?> content)
     {
         var scenario = new Scenario<CodeColor>(Rules.Nodes);
         for (int i = 0; i < content.Length; i++)
@@ -162,4 +213,7 @@ public class ResponseConstraintTests
 
         return scenario;
     }
+
+    [DebuggerStepThrough]
+    private static Scenario<CodeColor> GetScenario(params CodeColor?[] content) => GetScenario(content.AsSpan());
 }
