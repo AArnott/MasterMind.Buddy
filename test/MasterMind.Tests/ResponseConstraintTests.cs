@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Drawing;
+using System.Diagnostics;
 using MasterMind;
 using Nerdbank.Algorithms.NodeConstraintSelection;
 using Xunit;
@@ -62,7 +62,17 @@ public class ResponseConstraintTests
     {
         var constraint = new ResponseConstraint(new[] { Orange, Yellow, Teal, Purple }, new Response { RedCount = 2 });
 
-        var scenario = GetScenario(Orange, null, Purple, Teal);
+        var scenario = GetScenario(Orange, null, Magenta, Teal);
+        Assert.False(constraint.Resolve(scenario));
+        Assert.Null(scenario[1]);
+    }
+
+    [Fact]
+    public void Resolve_TwoRedsAndAWhite()
+    {
+        var constraint = new ResponseConstraint(new[] { Orange, Yellow, Teal, Purple }, new Response { RedCount = 2, WhiteCount = 1 });
+
+        var scenario = GetScenario(Orange, null, Magenta, Teal);
         Assert.True(constraint.Resolve(scenario));
         Assert.Equal(Yellow, scenario[1]);
 
@@ -70,10 +80,19 @@ public class ResponseConstraintTests
     }
 
     [Fact]
+    public void Resolve_ThreeRedsAndAWhite()
+    {
+        var constraint = new ResponseConstraint(new[] { Orange, Yellow, Teal, Purple }, new Response { RedCount = 3, WhiteCount = 1 });
+        var scenario = GetScenario(Orange, null, Yellow, Purple);
+        Assert.True(constraint.Resolve(scenario));
+        Assert.Equal(Yellow, scenario[1]);
+    }
+
+    [Fact]
     public void Resolve_ThreeReds()
     {
         var constraint = new ResponseConstraint(new[] { Orange, Yellow, Teal, Purple }, new Response { RedCount = 3 });
-        var scenario = GetScenario(Orange, null, Yellow, Purple);
+        var scenario = GetScenario(Orange, null, Magenta, Purple);
         Assert.True(constraint.Resolve(scenario));
         Assert.Equal(Yellow, scenario[1]);
     }
@@ -91,12 +110,16 @@ public class ResponseConstraintTests
         result = constraint.GetState(GetScenario(White, Orange, Yellow, Purple));
         Assert.Equal(ConstraintStates.Resolved, result);
 
-        // There are two indeterminate nodes, so it can be satisfied.
+        // There are two indeterminate nodes, but a white pin would be required, so it's broken.
         result = constraint.GetState(GetScenario(White, Orange, null, null));
+        Assert.Equal(ConstraintStates.None, result);
+
+        // There are two indeterminate nodes, so it can be satisfied.
+        result = constraint.GetState(GetScenario(White, Magenta, null, null));
         Assert.Equal(ConstraintStates.Satisfiable | ConstraintStates.Breakable | ConstraintStates.Resolvable, result);
 
         // One node matches, one is indeterminate.
-        result = constraint.GetState(GetScenario(Orange, null, Purple, Teal));
+        result = constraint.GetState(GetScenario(Orange, null, Magenta, Orange));
         Assert.Equal(ConstraintStates.Satisfiable | ConstraintStates.Breakable | ConstraintStates.Resolvable, result);
     }
 
@@ -115,6 +138,17 @@ public class ResponseConstraintTests
         Assert.Equal(ConstraintStates.Satisfied | ConstraintStates.Resolved, constraint.GetState(GetScenario(White, White, White, White)));
     }
 
+    [Fact]
+    public void GetState_RejectsSolutionWithNoColorFromOneColorMatchingClue()
+    {
+        var constraint = new ResponseConstraint(new[] { White, Teal, Purple, Magenta }, new Response { WhiteCount = 1 });
+
+        // The proposed solution is invalid because it does not contain *any* color from the clue already obtained,
+        // yet that clue specified that exactly ONE color was correct, simply out of place.
+        Assert.Equal(ConstraintStates.Resolved, constraint.GetState(GetScenario(Yellow, Orange, Yellow, Orange)));
+    }
+
+    [DebuggerStepThrough]
     private static Scenario<CodeColor> GetScenario(params CodeColor?[] content)
     {
         var scenario = new Scenario<CodeColor>(Rules.Nodes);

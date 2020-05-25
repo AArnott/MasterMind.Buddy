@@ -69,6 +69,17 @@ public class ActualGameTests : TestBase, IDisposable
         this.AddResponse(new[] { Teal, Purple, White, Purple }, new Response { RedCount = 4 });
     }
 
+    [Fact]
+    public void GameScript4()
+    {
+        this.AddResponse(new[] { White, Yellow, Teal, Orange }, new Response { RedCount = 1, WhiteCount = 1 });
+        this.AddResponse(new[] { White, Teal, Purple, Magenta }, new Response { WhiteCount = 1 });
+        this.AddResponse(new[] { Orange, White, Teal, Orange }, new Response { RedCount = 1 });
+        this.AddResponse(new[] { Yellow, Yellow, Yellow, Orange }, new Response { RedCount = 3 });
+        this.AddResponse(new[] { Yellow, Purple, Yellow, Orange }, new Response { RedCount = 3 });
+        this.AddResponse(new[] { Yellow, Magenta, Yellow, Orange }, new Response { RedCount = 4 });
+    }
+
     private void AddResponse(ReadOnlyMemory<CodeColor> guess, Response response)
     {
         this.responses.Add((guess, response));
