@@ -2,7 +2,7 @@
 
 A companion program for playing MasterMind.
 
-[![Build Status](https://dev.azure.com/andrewarnott/OSS/_apis/build/status/AArnott.MasterMind.Buddy?branchName=master)](https://dev.azure.com/andrewarnott/OSS/_build/latest?definitionId=38&branchName=master)
+[![Build Status](https://github.com/AArnott/MasterMind.Buddy/actions/workflows/build.yml/badge.svg)](https://github.com/AArnott/MasterMind.Buddy/actions/workflows/build.yml)
 
 ## Features
 
