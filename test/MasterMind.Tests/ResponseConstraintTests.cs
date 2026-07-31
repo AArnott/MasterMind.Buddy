@@ -1,4 +1,4 @@
-﻿// Copyright (c) Andrew Arnott. All rights reserved.
+// Copyright (c) Andrew Arnott. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
@@ -57,24 +57,27 @@ public class ResponseConstraintTests
     }
 
     [Fact]
-    public void Resolve_TwoReds()
+    public void GetState_CompleteSolution_MatchesResponse()
     {
-        ResponseConstraint constraint = new ResponseConstraint(new[] { Orange, Yellow, Teal, Purple }, new Response { RedCount = 2 });
+        ResponseConstraint constraint = new ResponseConstraint(
+            new[] { Magenta, Yellow, Teal, Orange },
+            new Response { RedCount = 1, WhiteCount = 2 });
 
-        Scenario<CodeColor> scenario = GetScenario(Orange, null, Purple, Teal);
-        Assert.True(constraint.Resolve(scenario));
-        Assert.Equal(Yellow, scenario[1]);
-
-        Assert.False(constraint.Resolve(new Scenario<CodeColor>(Rules.Nodes)));
+        ConstraintStates result = constraint.GetState(GetScenario(Magenta, Purple, Yellow, Teal));
+        Assert.Equal(ConstraintStates.Satisfied | ConstraintStates.Resolved, result);
     }
 
     [Fact]
-    public void Resolve_ThreeReds()
+    public void GetState_CompleteSolution_RejectsWrongWhiteCount()
     {
-        ResponseConstraint constraint = new ResponseConstraint(new[] { Orange, Yellow, Teal, Purple }, new Response { RedCount = 3 });
-        Scenario<CodeColor> scenario = GetScenario(Orange, null, Yellow, Purple);
-        Assert.True(constraint.Resolve(scenario));
-        Assert.Equal(Yellow, scenario[1]);
+        // Bug #1: YOYO must be rejected for WTPM -> 0 red, 1 white.
+        ResponseConstraint constraint = new ResponseConstraint(
+            new[] { White, Teal, Purple, Magenta },
+            new Response { RedCount = 0, WhiteCount = 1 });
+
+        ConstraintStates result = constraint.GetState(GetScenario(Yellow, Orange, Yellow, Orange));
+        Assert.Equal(ConstraintStates.Resolved, result);
+        Assert.False(result.HasFlag(ConstraintStates.Satisfiable));
     }
 
     [Fact]
@@ -85,18 +88,12 @@ public class ResponseConstraintTests
         // Three exact matches is an invalid solution.
         ConstraintStates result = constraint.GetState(GetScenario(Orange, Yellow, White, Purple));
         Assert.Equal(ConstraintStates.Resolved, result);
+        Assert.False(result.HasFlag(ConstraintStates.Satisfiable));
 
-        // Only one position is the same as the original guess, so it is not satisfiable.
+        // 1 red and whites that don't match required 2R 0W.
         result = constraint.GetState(GetScenario(White, Orange, Yellow, Purple));
         Assert.Equal(ConstraintStates.Resolved, result);
-
-        // There are two indeterminate nodes, so it can be satisfied.
-        result = constraint.GetState(GetScenario(White, Orange, null, null));
-        Assert.Equal(ConstraintStates.Satisfiable | ConstraintStates.Breakable | ConstraintStates.Resolvable, result);
-
-        // One node matches, one is indeterminate.
-        result = constraint.GetState(GetScenario(Orange, null, Purple, Teal));
-        Assert.Equal(ConstraintStates.Satisfiable | ConstraintStates.Breakable | ConstraintStates.Resolvable, result);
+        Assert.False(result.HasFlag(ConstraintStates.Satisfiable));
     }
 
     [Fact]
@@ -112,6 +109,34 @@ public class ResponseConstraintTests
         Assert.Equal(ConstraintStates.Satisfiable | ConstraintStates.Breakable, constraint.GetState(GetScenario(White, null, null, null)));
         Assert.Equal(ConstraintStates.Satisfiable | ConstraintStates.Breakable, constraint.GetState(GetScenario(White, White, White, null)));
         Assert.Equal(ConstraintStates.Satisfied | ConstraintStates.Resolved, constraint.GetState(GetScenario(White, White, White, White)));
+    }
+
+    [Fact]
+    public void Resolve_ForcesUniqueCompletion()
+    {
+        // Guess TPWM scored 3 red / 0 white. With T,P already correct and position 2 known wrong,
+        // position 3 must be Magenta to reach exactly three reds.
+        ResponseConstraint constraint = new ResponseConstraint(
+            new[] { Teal, Purple, White, Magenta },
+            new Response { RedCount = 3, WhiteCount = 0 });
+
+        Scenario<CodeColor> scenario = GetScenario(Teal, Purple, Yellow, null);
+        Assert.True(constraint.GetState(scenario).HasFlag(ConstraintStates.Resolvable));
+        Assert.True(constraint.Resolve(scenario));
+        Assert.Equal(Magenta, scenario[3]);
+    }
+
+    [Fact]
+    public void Resolve_NoForceWhenMultipleOptionsRemain()
+    {
+        ResponseConstraint constraint = new ResponseConstraint(
+            new[] { Teal, Purple, White, Magenta },
+            new Response { RedCount = 3, WhiteCount = 0 });
+
+        Scenario<CodeColor> scenario = GetScenario(Teal, Purple, null, Magenta);
+        Assert.False(constraint.GetState(scenario).HasFlag(ConstraintStates.Resolvable));
+        Assert.False(constraint.Resolve(scenario));
+        Assert.Null(scenario[2]);
     }
 
     private static Scenario<CodeColor> GetScenario(params CodeColor?[] content)
