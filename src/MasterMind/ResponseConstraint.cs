@@ -11,7 +11,7 @@ namespace MasterMind;
 /// </summary>
 public class ResponseConstraint : IConstraint<CodeColor>
 {
-    private readonly ReadOnlyMemory<CodeColor> guess;
+    private readonly CodeColor[] guess;
     private readonly Response response;
 
     /// <summary>
@@ -22,7 +22,7 @@ public class ResponseConstraint : IConstraint<CodeColor>
     public ResponseConstraint(ReadOnlyMemory<CodeColor> guess, Response response)
     {
         Requires.Argument(guess.Length == Rules.CodeSize, nameof(guess), "Unexpected length");
-        this.guess = guess;
+        this.guess = guess.ToArray();
         this.response = response;
     }
 
@@ -44,47 +44,44 @@ public class ResponseConstraint : IConstraint<CodeColor>
     {
         Requires.NotNull(scenario, nameof(scenario));
 
-        CodeColor?[] partial = new CodeColor?[Rules.CodeSize];
-        int indeterminateNodeCount = 0;
-        for (int i = 0; i < Rules.CodeSize; i++)
-        {
-            partial[i] = scenario[i];
-            if (partial[i] is null)
-            {
-                indeterminateNodeCount++;
-            }
-        }
+        Span<CodeColor> knownValues = stackalloc CodeColor[Rules.CodeSize];
+        Span<bool> isKnown = stackalloc bool[Rules.CodeSize];
+        int indeterminateNodeCount = CopyPartial(scenario, knownValues, isKnown);
 
         ConstraintStates result = ConstraintStates.None;
         if (indeterminateNodeCount == 0)
         {
             result |= ConstraintStates.Resolved;
+            if (Rules.CreateResponse(this.guess, knownValues) == this.response)
+            {
+                result |= ConstraintStates.Satisfied;
+            }
+
+            return result;
         }
 
-        CompletionStats stats = EvaluateCompletions(this.guess.Span, this.response, partial);
-        if (stats.SatisfyingCompletions == 0)
+        Span<bool> forcedMask = stackalloc bool[Rules.CodeSize];
+        Span<CodeColor> forcedValues = stackalloc CodeColor[Rules.CodeSize];
+        EvaluateCompletions(this.guess, this.response, knownValues, isKnown, out long total, out long satisfying, out int forcedCount, forcedMask, forcedValues);
+        if (satisfying == 0)
         {
             return result;
         }
 
         result |= ConstraintStates.Satisfiable;
-
-        if (stats.SatisfyingCompletions == stats.TotalCompletions)
+        if (satisfying == total)
         {
             result |= ConstraintStates.Satisfied;
         }
 
-        if (indeterminateNodeCount > 0)
+        if (satisfying < total)
         {
-            if (stats.SatisfyingCompletions < stats.TotalCompletions)
-            {
-                result |= ConstraintStates.Breakable;
-            }
+            result |= ConstraintStates.Breakable;
+        }
 
-            if (stats.ForcedAssignmentCount > 0)
-            {
-                result |= ConstraintStates.Resolvable;
-            }
+        if (forcedCount > 0)
+        {
+            result |= ConstraintStates.Resolvable;
         }
 
         return result;
@@ -103,7 +100,7 @@ public class ResponseConstraint : IConstraint<CodeColor>
         {
             for (int i = 0; i < this.guess.Length; i++)
             {
-                if (this.guess.Span[i] != otherConstraint.guess.Span[i])
+                if (this.guess[i] != otherConstraint.guess[i])
                 {
                     return false;
                 }
@@ -120,21 +117,17 @@ public class ResponseConstraint : IConstraint<CodeColor>
     {
         Requires.NotNull(scenario, nameof(scenario));
 
-        CodeColor?[] partial = new CodeColor?[Rules.CodeSize];
-        bool anyIndeterminate = false;
-        for (int i = 0; i < Rules.CodeSize; i++)
-        {
-            partial[i] = scenario[i];
-            anyIndeterminate |= partial[i] is null;
-        }
-
-        if (!anyIndeterminate)
+        Span<CodeColor> knownValues = stackalloc CodeColor[Rules.CodeSize];
+        Span<bool> isKnown = stackalloc bool[Rules.CodeSize];
+        if (CopyPartial(scenario, knownValues, isKnown) == 0)
         {
             return false;
         }
 
-        CompletionStats stats = EvaluateCompletions(this.guess.Span, this.response, partial);
-        if (stats.ForcedAssignmentCount == 0)
+        Span<bool> forcedMask = stackalloc bool[Rules.CodeSize];
+        Span<CodeColor> forcedValues = stackalloc CodeColor[Rules.CodeSize];
+        EvaluateCompletions(this.guess, this.response, knownValues, isKnown, out _, out long satisfying, out int forcedCount, forcedMask, forcedValues);
+        if (satisfying == 0 || forcedCount == 0)
         {
             return false;
         }
@@ -142,9 +135,9 @@ public class ResponseConstraint : IConstraint<CodeColor>
         bool changed = false;
         for (int i = 0; i < Rules.CodeSize; i++)
         {
-            if (scenario[i] is null && stats.ForcedMask[i])
+            if (!isKnown[i] && forcedMask[i])
             {
-                scenario[i] = stats.ForcedValues[i];
+                scenario[i] = forcedValues[i];
                 changed = true;
             }
         }
@@ -152,103 +145,126 @@ public class ResponseConstraint : IConstraint<CodeColor>
         return changed;
     }
 
-    /// <summary>
-    /// Evaluates every completion of a partial solution against the required response.
-    /// </summary>
-    private static CompletionStats EvaluateCompletions(ReadOnlySpan<CodeColor> guess, Response required, CodeColor?[] partial)
+    private static int CopyPartial(Scenario<CodeColor> scenario, Span<CodeColor> knownValues, Span<bool> isKnown)
     {
-        // Copy guess so the recursive walk can use a stable array without capturing a span.
-        CodeColor[] guessArray = guess.ToArray();
-        CodeColor[] solution = new CodeColor[Rules.CodeSize];
-        bool[] forcedMask = new bool[Rules.CodeSize];
-        CodeColor[] forcedValues = new CodeColor[Rules.CodeSize];
-
-        long total = 0;
-        long satisfying = 0;
-        bool firstSatisfying = true;
-
-        void Recurse(int index)
+        int indeterminateNodeCount = 0;
+        for (int i = 0; i < Rules.CodeSize; i++)
         {
-            if (index == Rules.CodeSize)
+            if (scenario[i] is CodeColor value)
             {
-                total++;
-                if (Rules.CreateResponse(guessArray, solution) == required)
+                knownValues[i] = value;
+                isKnown[i] = true;
+            }
+            else
+            {
+                isKnown[i] = false;
+                indeterminateNodeCount++;
+            }
+        }
+
+        return indeterminateNodeCount;
+    }
+
+    /// <summary>
+    /// Evaluates every completion of a partial solution against the required response without heap allocations.
+    /// </summary>
+    private static void EvaluateCompletions(
+        ReadOnlySpan<CodeColor> guess,
+        Response required,
+        Span<CodeColor> knownValues,
+        Span<bool> isKnown,
+        out long total,
+        out long satisfying,
+        out int forcedCount,
+        Span<bool> forcedMask,
+        Span<CodeColor> forcedValues)
+    {
+        Span<CodeColor> solution = stackalloc CodeColor[Rules.CodeSize];
+        Span<int> freeIndices = stackalloc int[Rules.CodeSize];
+        int freeCount = 0;
+        for (int i = 0; i < Rules.CodeSize; i++)
+        {
+            if (isKnown[i])
+            {
+                solution[i] = knownValues[i];
+            }
+            else
+            {
+                freeIndices[freeCount++] = i;
+            }
+        }
+
+        total = 0;
+        satisfying = 0;
+        forcedCount = 0;
+        bool firstSatisfying = true;
+        forcedMask.Clear();
+
+        // Odometer over free positions (at most 6^4 completions).
+        Span<int> digits = stackalloc int[Rules.CodeSize];
+        digits.Clear();
+        while (true)
+        {
+            for (int f = 0; f < freeCount; f++)
+            {
+                solution[freeIndices[f]] = (CodeColor)digits[f];
+            }
+
+            total++;
+            if (Rules.CreateResponse(guess, solution) == required)
+            {
+                satisfying++;
+                if (firstSatisfying)
                 {
-                    satisfying++;
-                    if (firstSatisfying)
+                    firstSatisfying = false;
+                    for (int f = 0; f < freeCount; f++)
                     {
-                        firstSatisfying = false;
-                        for (int i = 0; i < Rules.CodeSize; i++)
-                        {
-                            if (partial[i] is null)
-                            {
-                                forcedMask[i] = true;
-                                forcedValues[i] = solution[i];
-                            }
-                        }
+                        int idx = freeIndices[f];
+                        forcedMask[idx] = true;
+                        forcedValues[idx] = solution[idx];
                     }
-                    else
+                }
+                else
+                {
+                    for (int f = 0; f < freeCount; f++)
                     {
-                        for (int i = 0; i < Rules.CodeSize; i++)
+                        int idx = freeIndices[f];
+                        if (forcedMask[idx] && forcedValues[idx] != solution[idx])
                         {
-                            if (forcedMask[i] && forcedValues[i] != solution[i])
-                            {
-                                forcedMask[i] = false;
-                            }
+                            forcedMask[idx] = false;
                         }
                     }
                 }
-
-                return;
             }
 
-            if (partial[index] is CodeColor known)
+            int pos = 0;
+            while (pos < freeCount)
             {
-                solution[index] = known;
-                Recurse(index + 1);
-                return;
+                digits[pos]++;
+                if (digits[pos] < Rules.ColorCount)
+                {
+                    break;
+                }
+
+                digits[pos] = 0;
+                pos++;
             }
 
-            for (int color = 0; color < Rules.ColorCount; color++)
+            if (pos == freeCount)
             {
-                solution[index] = (CodeColor)color;
-                Recurse(index + 1);
+                break;
             }
         }
 
-        Recurse(0);
-
-        int forcedCount = 0;
-        for (int i = 0; i < Rules.CodeSize; i++)
+        if (satisfying > 0)
         {
-            if (forcedMask[i])
+            for (int i = 0; i < Rules.CodeSize; i++)
             {
-                forcedCount++;
+                if (forcedMask[i])
+                {
+                    forcedCount++;
+                }
             }
         }
-
-        return new CompletionStats(total, satisfying, forcedCount, forcedValues, forcedMask);
-    }
-
-    private readonly struct CompletionStats
-    {
-        internal CompletionStats(long totalCompletions, long satisfyingCompletions, int forcedAssignmentCount, CodeColor[] forcedValues, bool[] forcedMask)
-        {
-            this.TotalCompletions = totalCompletions;
-            this.SatisfyingCompletions = satisfyingCompletions;
-            this.ForcedAssignmentCount = forcedAssignmentCount;
-            this.ForcedValues = forcedValues;
-            this.ForcedMask = forcedMask;
-        }
-
-        internal long TotalCompletions { get; }
-
-        internal long SatisfyingCompletions { get; }
-
-        internal int ForcedAssignmentCount { get; }
-
-        internal CodeColor[] ForcedValues { get; }
-
-        internal bool[] ForcedMask { get; }
     }
 }

@@ -45,7 +45,7 @@ public struct Response : IEquatable<Response>
     public override bool Equals(object? obj) => obj is Response other && this.Equals(other);
 
     /// <inheritdoc/>
-    public override int GetHashCode() => this.RedCount + this.WhiteCount;
+    public override int GetHashCode() => this.RedCount + (5 * this.WhiteCount);
 
     /// <inheritdoc/>
     public override string ToString() => $"Red: {this.RedCount}, White: {this.WhiteCount}";

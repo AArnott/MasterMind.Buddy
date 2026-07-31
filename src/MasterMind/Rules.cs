@@ -33,6 +33,16 @@ public static class Rules
     public static readonly IReadOnlyList<object> Nodes = Enumerable.Range(1, CodeSize).Select(n => (object)n).ToArray();
 
     /// <summary>
+    /// Maximum distinct response keys used when partitioning guesses (red 0-4, white 0-4).
+    /// </summary>
+    private const int ResponseKeyCount = 5 * 5;
+
+    /// <summary>
+    /// Flat color table for every packed code. Index = (packed * CodeSize) + position.
+    /// </summary>
+    private static readonly CodeColor[] CodeSpaceColors = CreateCodeSpaceColors();
+
+    /// <summary>
     /// Creates a new <see cref="SolutionBuilder{TNodeState}"/> to represent a game.
     /// </summary>
     /// <returns>The newly initialized instance.</returns>
@@ -67,7 +77,6 @@ public static class Rules
 
         Response result = default;
 
-        // Count red nodes.
         Span<bool> match = stackalloc bool[CodeSize];
         for (int i = 0; i < CodeSize; i++)
         {
@@ -78,31 +87,56 @@ public static class Rules
             }
         }
 
-        // Count how many times each color appears in the solution that was not an exact match.
         Span<int> remainingColorsInSolution = stackalloc int[ColorCount];
         for (int i = 0; i < CodeSize; i++)
         {
             if (!match[i])
             {
-                CodeColor color = solution[i];
-                remainingColorsInSolution[(int)color]++;
+                remainingColorsInSolution[(int)solution[i]]++;
             }
         }
 
-        // For each occurrence of a solution color in the guess that was not an exact match, award one white marker.
         for (int i = 0; i < CodeSize; i++)
         {
-            if (!match[i])
+            if (!match[i] && remainingColorsInSolution[(int)guess[i]] > 0)
             {
-                if (remainingColorsInSolution[(int)guess[i]] > 0)
-                {
-                    remainingColorsInSolution[(int)guess[i]]--;
-                    result.WhiteCount++;
-                }
+                remainingColorsInSolution[(int)guess[i]]--;
+                result.WhiteCount++;
             }
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Packs a code into a single integer in base <see cref="ColorCount"/>.
+    /// </summary>
+    /// <param name="code">The code to pack.</param>
+    /// <returns>The packed representation.</returns>
+    public static int PackCode(ReadOnlySpan<CodeColor> code)
+    {
+        Requires.Argument(code.Length == CodeSize, nameof(code), "Unexpected length");
+        return (int)code[0]
+            + (ColorCount * (int)code[1])
+            + (ColorCount * ColorCount * (int)code[2])
+            + (ColorCount * ColorCount * ColorCount * (int)code[3]);
+    }
+
+    /// <summary>
+    /// Unpacks a code previously produced by <see cref="PackCode"/>.
+    /// </summary>
+    /// <param name="packed">The packed code.</param>
+    /// <param name="destination">A span of length <see cref="CodeSize"/> to receive the colors.</param>
+    public static void UnpackCode(int packed, Span<CodeColor> destination)
+    {
+        Requires.Argument(destination.Length >= CodeSize, nameof(destination), "Unexpected length");
+        destination[0] = (CodeColor)(packed % ColorCount);
+        packed /= ColorCount;
+        destination[1] = (CodeColor)(packed % ColorCount);
+        packed /= ColorCount;
+        destination[2] = (CodeColor)(packed % ColorCount);
+        packed /= ColorCount;
+        destination[3] = (CodeColor)packed;
     }
 
     /// <summary>
@@ -111,10 +145,9 @@ public static class Rules
     /// <returns>All possible codes.</returns>
     public static IEnumerable<CodeColor[]> EnumerateCodeSpace()
     {
-        CodeColor[] code = new CodeColor[CodeSize];
-        foreach (CodeColor[] item in EnumerateCodeSpace(code, 0))
+        for (int i = 0; i < CodeSpaceSize; i++)
         {
-            yield return item;
+            yield return ToCodeArray(i);
         }
     }
 
@@ -125,15 +158,67 @@ public static class Rules
     /// <returns>The remaining viable solutions.</returns>
     public static List<CodeColor[]> GetRemainingSolutions(SolutionBuilder<CodeColor> builder)
     {
+        List<int> packed = GetRemainingPackedSolutions(builder);
+        List<CodeColor[]> remaining = new(packed.Count);
+        for (int i = 0; i < packed.Count; i++)
+        {
+            remaining.Add(ToCodeArray(packed[i]));
+        }
+
+        return remaining;
+    }
+
+    /// <summary>
+    /// Returns packed codes still consistent with the builder's response constraints.
+    /// </summary>
+    /// <param name="builder">The builder containing response constraints.</param>
+    /// <returns>Packed remaining solutions.</returns>
+    public static List<int> GetRemainingPackedSolutions(SolutionBuilder<CodeColor> builder)
+    {
         Requires.NotNull(builder, nameof(builder));
 
-        List<ResponseConstraint> constraints = builder.Constraints.OfType<ResponseConstraint>().ToList();
-        List<CodeColor[]> remaining = new();
-        foreach (CodeColor[] code in EnumerateCodeSpace())
+        int constraintCount = 0;
+        foreach (IConstraint<CodeColor> constraint in builder.Constraints)
         {
-            if (IsConsistentWith(code, constraints))
+            if (constraint is ResponseConstraint)
             {
-                remaining.Add(code);
+                constraintCount++;
+            }
+        }
+
+        ReadOnlyMemory<CodeColor>[] guesses = new ReadOnlyMemory<CodeColor>[constraintCount];
+        Response[] responses = new Response[constraintCount];
+        int index = 0;
+        foreach (IConstraint<CodeColor> constraint in builder.Constraints)
+        {
+            if (constraint is ResponseConstraint responseConstraint)
+            {
+                guesses[index] = responseConstraint.Guess;
+                responses[index] = responseConstraint.Response;
+                index++;
+            }
+        }
+
+        // Flat cache of every code's colors: index = (packed * CodeSize) + position.
+        CodeColor[] allColors = CodeSpaceColors;
+        List<int> remaining = new();
+
+        for (int packed = 0; packed < CodeSpaceSize; packed++)
+        {
+            ReadOnlySpan<CodeColor> codeColors = allColors.AsSpan(packed * CodeSize, CodeSize);
+            bool ok = true;
+            for (int c = 0; c < constraintCount; c++)
+            {
+                if (CreateResponse(guesses[c].Span, codeColors) != responses[c])
+                {
+                    ok = false;
+                    break;
+                }
+            }
+
+            if (ok)
+            {
+                remaining.Add(packed);
             }
         }
 
@@ -154,52 +239,92 @@ public static class Rules
     /// </remarks>
     public static CodeColor[]? SuggestGuess(SolutionBuilder<CodeColor> builder)
     {
-        Requires.NotNull(builder, nameof(builder));
+        List<int> remaining = GetRemainingPackedSolutions(builder);
+        int? packed = SuggestGuess(remaining);
+        return packed is int value ? ToCodeArray(value) : null;
+    }
 
-        List<CodeColor[]> remaining = GetRemainingSolutions(builder);
-        if (remaining.Count == 0)
+    /// <summary>
+    /// Suggests a next guess from an already-computed remaining solution set.
+    /// </summary>
+    /// <param name="remainingPacked">Remaining solutions as packed codes.</param>
+    /// <returns>The packed recommended guess, or <see langword="null"/> if none remain.</returns>
+    public static int? SuggestGuess(IReadOnlyList<int> remainingPacked)
+    {
+        Requires.NotNull(remainingPacked, nameof(remainingPacked));
+
+        if (remainingPacked.Count == 0)
         {
             return null;
         }
 
-        if (remaining.Count == 1)
+        if (remainingPacked.Count == 1)
         {
-            return remaining[0];
+            return remainingPacked[0];
         }
 
-        // Hash viable solutions for O(1) tie-breaking.
-        HashSet<string> remainingKeys = new(remaining.Select(CodeKey));
+        Span<bool> viable = stackalloc bool[CodeSpaceSize];
+        viable.Clear();
+        for (int i = 0; i < remainingPacked.Count; i++)
+        {
+            viable[remainingPacked[i]] = true;
+        }
 
-        CodeColor[]? bestGuess = null;
+        // Flatten remaining solutions once so the inner loop avoids repeated unpacking.
+        CodeColor[] remainingColors = new CodeColor[remainingPacked.Count * CodeSize];
+        CodeColor[] allColors = CodeSpaceColors;
+        for (int i = 0; i < remainingPacked.Count; i++)
+        {
+            allColors.AsSpan(remainingPacked[i] * CodeSize, CodeSize).CopyTo(remainingColors.AsSpan(i * CodeSize, CodeSize));
+        }
+
+        Span<int> partitions = stackalloc int[ResponseKeyCount];
+
+        int bestGuess = -1;
         int bestWorstCase = int.MaxValue;
         bool bestIsViable = false;
-        long bestExpectedNumer = long.MaxValue; // expected remaining * remaining.Count, lower is better
+        long bestExpectedNumer = long.MaxValue;
 
-        foreach (CodeColor[] guess in EnumerateCodeSpace())
+        for (int guess = 0; guess < CodeSpaceSize; guess++)
         {
-            // Partition remaining solutions by the response this guess would produce.
-            Dictionary<Response, int> partitions = new();
+            ReadOnlySpan<CodeColor> guessColors = allColors.AsSpan(guess * CodeSize, CodeSize);
+            partitions.Clear();
+
             int worstCase = 0;
-            foreach (CodeColor[] solution in remaining)
+            bool doomed = false;
+
+            for (int s = 0; s < remainingPacked.Count; s++)
             {
-                Response response = CreateResponse(guess, solution);
-                partitions.TryGetValue(response, out int count);
-                count++;
-                partitions[response] = count;
+                ReadOnlySpan<CodeColor> solutionColors = remainingColors.AsSpan(s * CodeSize, CodeSize);
+                Response response = CreateResponse(guessColors, solutionColors);
+                int count = ++partitions[ResponseKey(response)];
                 if (count > worstCase)
                 {
                     worstCase = count;
+                    if (worstCase > bestWorstCase)
+                    {
+                        doomed = true;
+                        break;
+                    }
                 }
             }
 
-            long expectedNumer = 0;
-            foreach (int count in partitions.Values)
+            if (doomed)
             {
-                expectedNumer += (long)count * count;
+                continue;
             }
 
-            bool isViable = remainingKeys.Contains(CodeKey(guess));
+            long expectedNumer = 0;
+            for (int i = 0; i < partitions.Length; i++)
+            {
+                int count = partitions[i];
+                if (count != 0)
+                {
+                    expectedNumer += (long)count * count;
+                }
+            }
 
+            bool isViable = viable[guess];
             bool better =
                 worstCase < bestWorstCase ||
                 (worstCase == bestWorstCase && expectedNumer < bestExpectedNumer) ||
@@ -210,43 +335,61 @@ public static class Rules
                 bestWorstCase = worstCase;
                 bestExpectedNumer = expectedNumer;
                 bestIsViable = isViable;
-                bestGuess = (CodeColor[])guess.Clone();
+                bestGuess = guess;
             }
         }
 
-        return bestGuess;
+        return bestGuess >= 0 ? bestGuess : null;
     }
 
-    private static bool IsConsistentWith(ReadOnlySpan<CodeColor> code, List<ResponseConstraint> constraints)
+    /// <summary>
+    /// Fills a [<see cref="CodeSize"/> * <see cref="ColorCount"/>] histogram of position/color
+    /// frequencies for the given packed solutions. Index is <c>(position * ColorCount) + color</c>.
+    /// </summary>
+    /// <param name="remainingPacked">Remaining packed solutions.</param>
+    /// <param name="nodeValueCounts">Destination histogram storage.</param>
+    public static void CountNodeValues(IReadOnlyList<int> remainingPacked, Span<int> nodeValueCounts)
     {
-        foreach (ResponseConstraint constraint in constraints)
+        Requires.NotNull(remainingPacked, nameof(remainingPacked));
+        Requires.Argument(nodeValueCounts.Length >= CodeSize * ColorCount, nameof(nodeValueCounts), "Unexpected length");
+        nodeValueCounts.Slice(0, CodeSize * ColorCount).Clear();
+
+        CodeColor[] allColors = CodeSpaceColors;
+        for (int i = 0; i < remainingPacked.Count; i++)
         {
-            if (CreateResponse(constraint.Guess.Span, code) != constraint.Response)
+            ReadOnlySpan<CodeColor> colors = allColors.AsSpan(remainingPacked[i] * CodeSize, CodeSize);
+            for (int pos = 0; pos < CodeSize; pos++)
             {
-                return false;
+                nodeValueCounts[(pos * ColorCount) + (int)colors[pos]]++;
             }
         }
-
-        return true;
     }
 
-    private static string CodeKey(CodeColor[] code) => string.Concat(code.Select(c => (char)('0' + (int)c)));
+    private static int ResponseKey(Response response) => response.RedCount + (5 * response.WhiteCount);
 
-    private static IEnumerable<CodeColor[]> EnumerateCodeSpace(CodeColor[] code, int index)
+    private static CodeColor[] CreateCodeSpaceColors()
     {
-        if (index == CodeSize)
+        CodeColor[] colors = new CodeColor[CodeSpaceSize * CodeSize];
+        for (int packed = 0; packed < CodeSpaceSize; packed++)
         {
-            yield return (CodeColor[])code.Clone();
-            yield break;
+            int value = packed;
+            int baseIndex = packed * CodeSize;
+            colors[baseIndex] = (CodeColor)(value % ColorCount);
+            value /= ColorCount;
+            colors[baseIndex + 1] = (CodeColor)(value % ColorCount);
+            value /= ColorCount;
+            colors[baseIndex + 2] = (CodeColor)(value % ColorCount);
+            value /= ColorCount;
+            colors[baseIndex + 3] = (CodeColor)value;
         }
 
-        for (int color = 0; color < ColorCount; color++)
-        {
-            code[index] = (CodeColor)color;
-            foreach (CodeColor[] item in EnumerateCodeSpace(code, index + 1))
-            {
-                yield return item;
-            }
-        }
+        return colors;
+    }
+
+    private static CodeColor[] ToCodeArray(int packed)
+    {
+        CodeColor[] code = new CodeColor[CodeSize];
+        CodeSpaceColors.AsSpan(packed * CodeSize, CodeSize).CopyTo(code);
+        return code;
     }
 }

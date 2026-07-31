@@ -95,39 +95,50 @@ internal static class Program
             Response response = InputResponse();
             builder.AddResponse(guess, response);
 
-            SolutionBuilder<CodeColor>.SolutionsAnalysis analysis = builder.AnalyzeSolutions(CancellationToken.None);
-            analysis.ApplyAnalysisBackToBuilder();
-            if (analysis.ViableSolutionsFound == 1)
+            // Enumerate the remaining code space once and reuse it for counts, probabilities, and suggestions.
+            List<int> remaining = Rules.GetRemainingPackedSolutions(builder);
+            if (remaining.Count == 1)
             {
                 System.Console.WriteLine("Solution found!");
                 break;
             }
 
-            System.Console.WriteLine($"{analysis.ViableSolutionsFound} solutions remaining.");
+            if (remaining.Count == 0)
+            {
+                System.Console.WriteLine("No solutions remain; prior answers are inconsistent.");
+                break;
+            }
 
-            PrintProbabilities(analysis);
-            PrintSuggestedGuess(builder, CancellationToken.None);
+            System.Console.WriteLine($"{remaining.Count} solutions remaining.");
+
+            PrintProbabilities(remaining);
+            PrintSuggestedGuess(remaining, CancellationToken.None);
         }
     }
 
-    private static void PrintSuggestedGuess(SolutionBuilder<CodeColor> builder, CancellationToken cancellationToken)
+    private static void PrintSuggestedGuess(IReadOnlyList<int> remaining, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        CodeColor[]? guess = Rules.SuggestGuess(builder);
-        if (guess is null)
+        int? packedGuess = Rules.SuggestGuess(remaining);
+        if (packedGuess is null)
         {
             System.Console.WriteLine("No reasonable next guess found.");
             return;
         }
 
-        System.Console.WriteLine("A reasonable next guess: {0}", string.Join(", ", guess));
+        Span<CodeColor> guess = stackalloc CodeColor[Rules.CodeSize];
+        Rules.UnpackCode(packedGuess.Value, guess);
+        System.Console.WriteLine("A reasonable next guess: {0}", string.Join(", ", guess.ToArray()));
     }
 
-    private static void PrintProbabilities(SolutionBuilder<CodeColor>.SolutionsAnalysis analysis)
+    private static void PrintProbabilities(IReadOnlyList<int> remaining)
     {
         string[] colorNames = Enum.GetNames(typeof(CodeColor));
         int maxColorLength = colorNames.Select(n => n.Length).Max();
         const int positionColumnWidth = 5;
+
+        Span<int> nodeValueCounts = stackalloc int[Rules.CodeSize * Rules.ColorCount];
+        Rules.CountNodeValues(remaining, nodeValueCounts);
 
         System.Console.Write(new string(' ', maxColorLength + 1));
         for (int position = 1; position <= Rules.CodeSize; position++)
@@ -142,7 +153,7 @@ internal static class Program
             System.Console.Write("{0,-" + (maxColorLength + 1) + "}", colorNames[i]);
             for (int j = 0; j < Rules.CodeSize; j++)
             {
-                int percent = (int)(analysis.GetNodeValueCount(j, (CodeColor)i) * 100 / analysis.ViableSolutionsFound);
+                int percent = (nodeValueCounts[(j * Rules.ColorCount) + i] * 100) / remaining.Count;
                 string percentWithUnits = percent.ToString(CultureInfo.CurrentCulture) + "%";
                 System.Console.Write($"{percentWithUnits,-positionColumnWidth}");
             }
