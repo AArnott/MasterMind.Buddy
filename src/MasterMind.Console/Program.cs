@@ -112,14 +112,15 @@ internal static class Program
 
     private static void PrintSuggestedGuess(SolutionBuilder<CodeColor> builder, CancellationToken cancellationToken)
     {
-        Scenario<CodeColor>? scenario = builder.GetProbableSolution(cancellationToken);
-        if (scenario is null)
+        cancellationToken.ThrowIfCancellationRequested();
+        CodeColor[]? guess = Rules.SuggestGuess(builder);
+        if (guess is null)
         {
             System.Console.WriteLine("No reasonable next guess found.");
             return;
         }
 
-        System.Console.WriteLine("A reasonable next guess: {0}", string.Join(", ", scenario.NodeStates));
+        System.Console.WriteLine("A reasonable next guess: {0}", string.Join(", ", guess));
     }
 
     private static void PrintProbabilities(SolutionBuilder<CodeColor>.SolutionsAnalysis analysis)
