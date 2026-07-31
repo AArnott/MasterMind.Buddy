@@ -1,8 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
 <Project>
-  <PropertyGroup>
-    <!-- Workaround https://github.com/dotnet/wpf/issues/1718 -->
-    <EmbedUntrackedSources Condition=" '$(UseWPF)' == 'true' ">false</EmbedUntrackedSources>
-  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.cs" Condition=" '$(Language)'=='C#' " />
+    <Compile Include="$(MSBuildThisFileDirectory)AssemblyInfo.vb" Condition=" '$(Language)'=='VB' " />
+  </ItemGroup>
 
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory)../, Directory.Build.targets))\Directory.Build.targets" Condition=" '$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory)../, Directory.Build.targets))' != '' " />
+  <Import Project="$([MSBuild]::GetPathOfFileAbove($(MSBuildThisFile), $(MSBuildThisFileDirectory)..))" />
 </Project>

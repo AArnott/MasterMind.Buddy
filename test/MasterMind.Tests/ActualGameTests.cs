@@ -7,7 +7,6 @@ using System.Threading;
 using MasterMind;
 using Nerdbank.Algorithms.NodeConstraintSelection;
 using Xunit;
-using Xunit.Abstractions;
 using static MasterMind.CodeColor;
 
 public class ActualGameTests : TestBase, IDisposable
@@ -34,9 +33,9 @@ public class ActualGameTests : TestBase, IDisposable
             solution[i] = this.builder[i]!.Value;
         }
 
-        foreach (var entry in this.responses)
+        foreach ((ReadOnlyMemory<CodeColor> Guess, Response Response) entry in this.responses)
         {
-            var ourResponse = Rules.CreateResponse(entry.Guess.Span, solution);
+            Response ourResponse = Rules.CreateResponse(entry.Guess.Span, solution);
             Assert.Equal(entry.Response, ourResponse);
         }
     }

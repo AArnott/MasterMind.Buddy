@@ -2,7 +2,6 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
-using System.Drawing;
 using MasterMind;
 using Nerdbank.Algorithms.NodeConstraintSelection;
 using Xunit;
@@ -13,7 +12,7 @@ public class ResponseConstraintTests
     [Fact]
     public void Nodes()
     {
-        var constraint = new ResponseConstraint(new CodeColor[Rules.CodeSize], default);
+        ResponseConstraint constraint = new ResponseConstraint(new CodeColor[Rules.CodeSize], default);
         Assert.Same(Rules.Nodes, constraint.Nodes);
     }
 
@@ -27,10 +26,10 @@ public class ResponseConstraintTests
     [Fact]
     public void Equality()
     {
-        var constraint1a = new ResponseConstraint(new CodeColor[Rules.CodeSize], default);
-        var constraint1b = new ResponseConstraint(new CodeColor[Rules.CodeSize], default);
-        var constraint2 = new ResponseConstraint(new CodeColor[Rules.CodeSize], new Response { RedCount = 2 });
-        var constraint3 = new ResponseConstraint(new CodeColor[Rules.CodeSize] { Magenta, Yellow, White, Orange }, new Response { RedCount = 2 });
+        ResponseConstraint constraint1a = new ResponseConstraint(new CodeColor[Rules.CodeSize], default);
+        ResponseConstraint constraint1b = new ResponseConstraint(new CodeColor[Rules.CodeSize], default);
+        ResponseConstraint constraint2 = new ResponseConstraint(new CodeColor[Rules.CodeSize], new Response { RedCount = 2 });
+        ResponseConstraint constraint3 = new ResponseConstraint(new CodeColor[Rules.CodeSize] { Magenta, Yellow, White, Orange }, new Response { RedCount = 2 });
         Assert.Equal(constraint1a, constraint1b);
         Assert.NotEqual(constraint1a, constraint2);
         Assert.NotEqual(constraint1a, constraint3);
@@ -40,9 +39,9 @@ public class ResponseConstraintTests
     [Fact]
     public void Equality_Object()
     {
-        var constraint1a = new ResponseConstraint(new CodeColor[Rules.CodeSize], default);
-        var constraint1b = new ResponseConstraint(new CodeColor[Rules.CodeSize], default);
-        var constraint2 = new ResponseConstraint(new CodeColor[Rules.CodeSize], new Response { RedCount = 2 });
+        ResponseConstraint constraint1a = new ResponseConstraint(new CodeColor[Rules.CodeSize], default);
+        ResponseConstraint constraint1b = new ResponseConstraint(new CodeColor[Rules.CodeSize], default);
+        ResponseConstraint constraint2 = new ResponseConstraint(new CodeColor[Rules.CodeSize], new Response { RedCount = 2 });
         Assert.True(constraint1a.Equals((object)constraint1b));
         Assert.False(constraint1a.Equals((object)constraint2));
     }
@@ -50,9 +49,9 @@ public class ResponseConstraintTests
     [Fact]
     public void GetHashCode_Test()
     {
-        var constraint1a = new ResponseConstraint(new CodeColor[Rules.CodeSize], default);
-        var constraint1b = new ResponseConstraint(new CodeColor[Rules.CodeSize], default);
-        var constraint2 = new ResponseConstraint(new CodeColor[Rules.CodeSize], new Response { RedCount = 2 });
+        ResponseConstraint constraint1a = new ResponseConstraint(new CodeColor[Rules.CodeSize], default);
+        ResponseConstraint constraint1b = new ResponseConstraint(new CodeColor[Rules.CodeSize], default);
+        ResponseConstraint constraint2 = new ResponseConstraint(new CodeColor[Rules.CodeSize], new Response { RedCount = 2 });
         Assert.Equal(constraint1a.GetHashCode(), constraint1b.GetHashCode());
         Assert.NotEqual(constraint1a.GetHashCode(), constraint2.GetHashCode());
     }
@@ -60,9 +59,9 @@ public class ResponseConstraintTests
     [Fact]
     public void Resolve_TwoReds()
     {
-        var constraint = new ResponseConstraint(new[] { Orange, Yellow, Teal, Purple }, new Response { RedCount = 2 });
+        ResponseConstraint constraint = new ResponseConstraint(new[] { Orange, Yellow, Teal, Purple }, new Response { RedCount = 2 });
 
-        var scenario = GetScenario(Orange, null, Purple, Teal);
+        Scenario<CodeColor> scenario = GetScenario(Orange, null, Purple, Teal);
         Assert.True(constraint.Resolve(scenario));
         Assert.Equal(Yellow, scenario[1]);
 
@@ -72,8 +71,8 @@ public class ResponseConstraintTests
     [Fact]
     public void Resolve_ThreeReds()
     {
-        var constraint = new ResponseConstraint(new[] { Orange, Yellow, Teal, Purple }, new Response { RedCount = 3 });
-        var scenario = GetScenario(Orange, null, Yellow, Purple);
+        ResponseConstraint constraint = new ResponseConstraint(new[] { Orange, Yellow, Teal, Purple }, new Response { RedCount = 3 });
+        Scenario<CodeColor> scenario = GetScenario(Orange, null, Yellow, Purple);
         Assert.True(constraint.Resolve(scenario));
         Assert.Equal(Yellow, scenario[1]);
     }
@@ -81,10 +80,10 @@ public class ResponseConstraintTests
     [Fact]
     public void GetState_TwoReds()
     {
-        var constraint = new ResponseConstraint(new[] { Orange, Yellow, Teal, Purple }, new Response { RedCount = 2 });
+        ResponseConstraint constraint = new ResponseConstraint(new[] { Orange, Yellow, Teal, Purple }, new Response { RedCount = 2 });
 
         // Three exact matches is an invalid solution.
-        var result = constraint.GetState(GetScenario(Orange, Yellow, White, Purple));
+        ConstraintStates result = constraint.GetState(GetScenario(Orange, Yellow, White, Purple));
         Assert.Equal(ConstraintStates.Resolved, result);
 
         // Only one position is the same as the original guess, so it is not satisfiable.
@@ -103,7 +102,7 @@ public class ResponseConstraintTests
     [Fact]
     public void GetState_ZeroMarkers()
     {
-        var constraint = new ResponseConstraint(new[] { Purple, Teal, Orange, Magenta }, default);
+        ResponseConstraint constraint = new ResponseConstraint(new[] { Purple, Teal, Orange, Magenta }, default);
         Assert.Equal(ConstraintStates.None, constraint.GetState(GetScenario(Purple, null, null, null)));
         Assert.Equal(ConstraintStates.None, constraint.GetState(GetScenario(Teal, null, null, null)));
         Assert.Equal(ConstraintStates.None, constraint.GetState(GetScenario(Orange, null, null, null)));
@@ -117,7 +116,7 @@ public class ResponseConstraintTests
 
     private static Scenario<CodeColor> GetScenario(params CodeColor?[] content)
     {
-        var scenario = new Scenario<CodeColor>(Rules.Nodes);
+        Scenario<CodeColor> scenario = new Scenario<CodeColor>(Rules.Nodes);
         for (int i = 0; i < content.Length; i++)
         {
             if (content[i] is CodeColor)

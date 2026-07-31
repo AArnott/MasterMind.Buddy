@@ -6,7 +6,7 @@ using System.Globalization;
 using System.Text;
 using MasterMind;
 using Nerdbank.Algorithms.NodeConstraintSelection;
-using Xunit.Abstractions;
+using Xunit;
 
 public abstract class TestBase
 {
@@ -19,11 +19,12 @@ public abstract class TestBase
 
     public void PrintPossibleSolutionsSimple(SolutionBuilder<CodeColor>.SolutionsAnalysis analysis)
     {
-        var stringBuilder = new StringBuilder();
+        StringBuilder stringBuilder = new StringBuilder();
+        Span<bool> mayBeSelected = stackalloc bool[Rules.ColorCount];
         for (int i = 0; i < Rules.CodeSize; i++)
         {
             int colorPossibilities = 0;
-            Span<bool> mayBeSelected = stackalloc bool[Rules.ColorCount];
+            mayBeSelected.Clear();
             for (int colorIndex = 0; colorIndex < Rules.ColorCount; colorIndex++)
             {
                 if (analysis.GetNodeValueCount(i, (CodeColor)colorIndex) > 0)

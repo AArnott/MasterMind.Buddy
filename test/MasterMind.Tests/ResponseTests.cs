@@ -4,15 +4,12 @@
 using System;
 using MasterMind;
 using Xunit;
-using Xunit.Abstractions;
 
 public class ResponseTests
 {
-    private readonly ITestOutputHelper logger;
-
     public ResponseTests(ITestOutputHelper logger)
     {
-        this.logger = logger;
+        _ = logger;
     }
 
     [Fact]
@@ -20,9 +17,9 @@ public class ResponseTests
     {
         Response defaultResponse = default;
         Assert.Equal(defaultResponse, defaultResponse);
-        var responseWithRed = new Response { RedCount = 3 };
+        Response responseWithRed = new Response { RedCount = 3 };
         Assert.NotEqual(defaultResponse, responseWithRed);
-        var responseWithWhite = new Response { WhiteCount = 3 };
+        Response responseWithWhite = new Response { WhiteCount = 3 };
         Assert.NotEqual(defaultResponse, responseWithWhite);
         Assert.NotEqual(responseWithRed, responseWithWhite);
     }
@@ -31,7 +28,7 @@ public class ResponseTests
     public void Equals_Object_Tests()
     {
         Response defaultResponse = default;
-        var responseWithRed = new Response { RedCount = 3 };
+        Response responseWithRed = new Response { RedCount = 3 };
         Assert.True(defaultResponse.Equals((object)defaultResponse));
         Assert.False(defaultResponse.Equals((object)responseWithRed));
     }
@@ -40,7 +37,7 @@ public class ResponseTests
     public void EqualityOperators()
     {
         Response defaultResponse = default;
-        var responseWithRed = new Response { RedCount = 3 };
+        Response responseWithRed = new Response { RedCount = 3 };
         Assert.True(defaultResponse == default);
         Assert.False(defaultResponse != default);
         Assert.False(defaultResponse == responseWithRed);
@@ -51,8 +48,8 @@ public class ResponseTests
     public void GetHashCode_Tests()
     {
         Response defaultResponse = default;
-        var responseWithRed = new Response { RedCount = 3 };
-        var responseWithWhite = new Response { WhiteCount = 3 };
+        Response responseWithRed = new Response { RedCount = 3 };
+        Response responseWithWhite = new Response { WhiteCount = 3 };
         Assert.NotEqual(defaultResponse.GetHashCode(), responseWithRed.GetHashCode());
         Assert.NotEqual(defaultResponse.GetHashCode(), responseWithWhite.GetHashCode());
     }

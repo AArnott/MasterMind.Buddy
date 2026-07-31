@@ -19,7 +19,9 @@ Param (
     [string]$AccessToken
 )
 
-$toolsPath = & "$PSScriptRoot\..\azure-pipelines\Get-TempToolsPath.ps1"
+$envVars = @{}
+
+$toolsPath = & "$PSScriptRoot\Get-TempToolsPath.ps1"
 
 if ($IsMacOS -or $IsLinux) {
     $installerScript = "installcredprovider.sh"
@@ -31,7 +33,7 @@ if ($IsMacOS -or $IsLinux) {
 
 $installerScript = Join-Path $toolsPath $installerScript
 
-if (!(Test-Path $installerScript)) {
+if (!(Test-Path $installerScript) -or $Force) {
     Invoke-WebRequest $sourceUrl -OutFile $installerScript
 }
 
@@ -41,14 +43,14 @@ if ($IsMacOS -or $IsLinux) {
     chmod u+x $installerScript
 }
 
-& $installerScript -Force:$Force
+& $installerScript -Force:$Force -AddNetfx -InstallNet8
 
 if ($AccessToken) {
     $endpoints = @()
 
     $endpointURIs = @()
     Get-ChildItem "$PSScriptRoot\..\nuget.config" -Recurse |% {
-        $nugetConfig = [xml](Get-Content -Path $_)
+        $nugetConfig = [xml](Get-Content -LiteralPath $_)
 
         $nugetConfig.configuration.packageSources.add |? { ($_.value -match '^https://pkgs\.dev\.azure\.com/') -or ($_.value -match '^https://[\w\-]+\.pkgs\.visualstudio\.com/') } |% {
             if ($endpointURIs -notcontains $_.Value) {
@@ -66,9 +68,9 @@ if ($AccessToken) {
     Add-Member -InputObject $auth -MemberType NoteProperty -Name endpointCredentials -Value $endpoints
 
     $authJson = ConvertTo-Json -InputObject $auth
-    $envVars = @{
+    $envVars += @{
         'VSS_NUGET_EXTERNAL_FEED_ENDPOINTS'=$authJson;
     }
-
-    & "$PSScriptRoot\..\azure-pipelines\Set-EnvVars.ps1" -Variables $envVars | Out-Null
 }
+
+& "$PSScriptRoot/Set-EnvVars.ps1" -Variables $envVars | Out-Null

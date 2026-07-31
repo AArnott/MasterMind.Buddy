@@ -4,7 +4,6 @@
 using System;
 using MasterMind;
 using Xunit;
-using Xunit.Abstractions;
 using static MasterMind.CodeColor;
 
 public class RulesTests : TestBase
