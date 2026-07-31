@@ -99,7 +99,9 @@ internal static class Program
             List<int> remaining = Rules.GetRemainingPackedSolutions(builder);
             if (remaining.Count == 1)
             {
-                System.Console.WriteLine("Solution found!");
+                Span<CodeColor> solution = stackalloc CodeColor[Rules.CodeSize];
+                Rules.UnpackCode(remaining[0], solution);
+                System.Console.WriteLine("Solution found: {0}", string.Join(", ", solution.ToArray()));
                 break;
             }
 
