@@ -20,8 +20,26 @@ internal static class Program
 
     private static readonly Regex GuessPattern = new Regex("^[" + ColorChoices + "]{" + Rules.CodeSize + "}$", RegexOptions.IgnoreCase);
 
-    private static void Main()
+    private static void Main(string[] args)
     {
+        if (args.Length > 0 && string.Equals(args[0], "simulate", StringComparison.OrdinalIgnoreCase))
+        {
+            int games = Simulation.DefaultGamesPerStrategy;
+            int? seed = null;
+            if (args.Length > 1 && int.TryParse(args[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedGames))
+            {
+                games = parsedGames;
+            }
+
+            if (args.Length > 2 && int.TryParse(args[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedSeed))
+            {
+                seed = parsedSeed;
+            }
+
+            Simulation.Run(games, seed);
+            return;
+        }
+
         System.Console.Write("What role are you playing (M = Code _Maker, B = Code _Breaker)? ");
         while (true)
         {
