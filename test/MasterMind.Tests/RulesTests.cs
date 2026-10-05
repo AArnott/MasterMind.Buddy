@@ -10,8 +10,8 @@ using static MasterMind.CodeColor;
 public class RulesTests : TestBase
 {
     public RulesTests()
-	{
-	}
+    {
+    }
 
     [Test]
     public void CreateResponse_DifferentSizes()

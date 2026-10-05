@@ -17,8 +17,8 @@ public class ActualGameTests : TestBase, IDisposable
     private SolutionBuilder<CodeColor>.SolutionsAnalysis? analysis;
 
     public ActualGameTests()
-	{
-	}
+    {
+    }
 
     public void Dispose()
     {

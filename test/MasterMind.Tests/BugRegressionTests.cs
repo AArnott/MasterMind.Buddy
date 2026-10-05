@@ -14,8 +14,8 @@ using static MasterMind.CodeColor;
 public class BugRegressionTests : TestBase
 {
     public BugRegressionTests()
-	{
-	}
+    {
+    }
 
     /// <summary>
     /// Regression for https://github.com/AArnott/MasterMind.Buddy/issues/1
