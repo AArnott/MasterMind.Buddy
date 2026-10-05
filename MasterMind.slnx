@@ -24,4 +24,5 @@
   <Project Path="src/MasterMind/MasterMind.csproj" />
   <Project Path="src/MasterMind.Console/MasterMind.Console.csproj" />
   <Project Path="test/MasterMind.Tests/MasterMind.Tests.csproj" />
+  <Project Path="test/AotCompatibilityTest/AotCompatibilityTest.csproj" />
 </Solution>
