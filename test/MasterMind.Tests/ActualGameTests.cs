@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Threading;
 using MasterMind;
 using Nerdbank.Algorithms.NodeConstraintSelection;
+using TUnit;
 using Xunit;
 using static MasterMind.CodeColor;
 
@@ -15,10 +16,9 @@ public class ActualGameTests : TestBase, IDisposable
     private readonly List<(ReadOnlyMemory<CodeColor> Guess, Response Response)> responses = new List<(ReadOnlyMemory<CodeColor>, Response)>();
     private SolutionBuilder<CodeColor>.SolutionsAnalysis? analysis;
 
-    public ActualGameTests(ITestOutputHelper logger)
-        : base(logger)
-    {
-    }
+    public ActualGameTests()
+	{
+	}
 
     public void Dispose()
     {
@@ -40,7 +40,7 @@ public class ActualGameTests : TestBase, IDisposable
         }
     }
 
-    [Fact]
+    [Test]
     public void GameScript1()
     {
         this.AddResponse(new[] { Magenta, White, Teal, Yellow }, new Response { WhiteCount = 2 });
@@ -49,7 +49,7 @@ public class ActualGameTests : TestBase, IDisposable
         this.builder.AddResponse(new[] { Yellow, Yellow, Yellow, White }, new Response { RedCount = 4 });
     }
 
-    [Fact]
+    [Test]
     public void GameScript2()
     {
         this.AddResponse(new[] { Purple, Magenta, Yellow, Orange }, new Response { RedCount = 1 });
@@ -58,7 +58,7 @@ public class ActualGameTests : TestBase, IDisposable
         this.AddResponse(new[] { Magenta, Magenta, Magenta, Magenta }, default);
     }
 
-    [Fact]
+    [Test]
     public void GameScript3()
     {
         this.AddResponse(new[] { Purple, White, Yellow, Teal }, new Response { WhiteCount = 3 });

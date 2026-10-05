@@ -3,16 +3,12 @@
 
 using System;
 using MasterMind;
+using TUnit;
 using Xunit;
 
 public class ResponseTests
 {
-    public ResponseTests(ITestOutputHelper logger)
-    {
-        _ = logger;
-    }
-
-    [Fact]
+    [Test]
     public void Equals_Tests()
     {
         Response defaultResponse = default;
@@ -24,7 +20,7 @@ public class ResponseTests
         Assert.NotEqual(responseWithRed, responseWithWhite);
     }
 
-    [Fact]
+    [Test]
     public void Equals_Object_Tests()
     {
         Response defaultResponse = default;
@@ -33,7 +29,7 @@ public class ResponseTests
         Assert.False(defaultResponse.Equals((object)responseWithRed));
     }
 
-    [Fact]
+    [Test]
     public void EqualityOperators()
     {
         Response defaultResponse = default;
@@ -44,7 +40,7 @@ public class ResponseTests
         Assert.True(defaultResponse != responseWithRed);
     }
 
-    [Fact]
+    [Test]
     public void GetHashCode_Tests()
     {
         Response defaultResponse = default;
