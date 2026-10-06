@@ -3,23 +3,23 @@
 
 using System;
 using MasterMind;
+using TUnit;
 using Xunit;
 using static MasterMind.CodeColor;
 
 public class RulesTests : TestBase
 {
-    public RulesTests(ITestOutputHelper logger)
-        : base(logger)
+    public RulesTests()
     {
     }
 
-    [Fact]
+    [Test]
     public void CreateResponse_DifferentSizes()
     {
         Assert.Throws<ArgumentException>(() => Rules.CreateResponse(new CodeColor[5], new CodeColor[2]));
     }
 
-    [Fact]
+    [Test]
     public void ValidResponses()
     {
         ReadOnlySpan<CodeColor> solution = new CodeColor[Rules.CodeSize]
@@ -51,7 +51,7 @@ public class RulesTests : TestBase
         Assert.Equal(0, response.WhiteCount);
     }
 
-    [Fact]
+    [Test]
     public void CreateSolutionBuilder()
     {
         Assert.NotSame(Rules.CreateSolutionBuilder(), Rules.CreateSolutionBuilder());

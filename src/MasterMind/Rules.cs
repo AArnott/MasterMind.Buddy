@@ -48,7 +48,11 @@ public static class Rules
     /// <returns>The newly initialized instance.</returns>
     public static SolutionBuilder<CodeColor> CreateSolutionBuilder()
     {
+#if NET
+        ImmutableArray<CodeColor> possibleNodeValues = [.. Enum.GetValues<CodeColor>()];
+#else
         ImmutableArray<CodeColor> possibleNodeValues = Enum.GetValues(typeof(CodeColor)).Cast<CodeColor>().ToImmutableArray();
+#endif
         SolutionBuilder<CodeColor> builder = new(Nodes, possibleNodeValues);
         return builder;
     }

@@ -7,13 +7,13 @@ using System.Linq;
 using System.Threading;
 using MasterMind;
 using Nerdbank.Algorithms.NodeConstraintSelection;
+using TUnit;
 using Xunit;
 using static MasterMind.CodeColor;
 
 public class BugRegressionTests : TestBase
 {
-    public BugRegressionTests(ITestOutputHelper logger)
-        : base(logger)
+    public BugRegressionTests()
     {
     }
 
@@ -21,7 +21,7 @@ public class BugRegressionTests : TestBase
     /// Regression for https://github.com/AArnott/MasterMind.Buddy/issues/1
     /// YOYO must not remain viable after WTPM scored 0 red / 1 white.
     /// </summary>
-    [Fact]
+    [Test]
     public void Issue1_ContradictorySolutionEliminated()
     {
         SolutionBuilder<CodeColor> builder = Rules.CreateSolutionBuilder();
@@ -47,7 +47,7 @@ public class BugRegressionTests : TestBase
     /// After TPWM -> 3R0W the solver should keep only consistent codes and suggest a
     /// low worst-case guess so the secret can be isolated quickly.
     /// </summary>
-    [Fact]
+    [Test]
     public void Issue2_FewerStepsWithMinimaxSuggestion()
     {
         CodeColor[] secret = new[] { Teal, Purple, Orange, Magenta };
@@ -72,16 +72,16 @@ public class BugRegressionTests : TestBase
             builder.AddResponse(suggestion, response);
             guesses++;
             remaining = Rules.GetRemainingSolutions(builder);
-            this.Logger.WriteLine($"Guess {guesses}: {string.Join(",", suggestion)} -> {response}; {remaining.Count} left");
+            this.Logger.LogInformation($"Guess {guesses}: {string.Join(",", suggestion)} -> {response}; {remaining.Count} left");
             Assert.True(guesses < 6, "Should solve issue #2 secret in fewer than 6 total guesses.");
         }
 
         Assert.Single(remaining);
         Assert.Equal(secret, remaining[0]);
-        this.Logger.WriteLine($"Solved in {guesses} guesses.");
+        this.Logger.LogInformation($"Solved in {guesses} guesses.");
     }
 
-    [Fact]
+    [Test]
     public void SuggestGuess_SingleSolutionReturnsIt()
     {
         SolutionBuilder<CodeColor> builder = Rules.CreateSolutionBuilder();
@@ -92,7 +92,7 @@ public class BugRegressionTests : TestBase
         Assert.Equal(secret, suggestion);
     }
 
-    [Fact]
+    [Test]
     public void GetRemainingSolutions_MatchesAnalyzeSolutionsCount()
     {
         SolutionBuilder<CodeColor> builder = Rules.CreateSolutionBuilder();

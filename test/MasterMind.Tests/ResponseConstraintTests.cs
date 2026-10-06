@@ -4,26 +4,27 @@
 using System;
 using MasterMind;
 using Nerdbank.Algorithms.NodeConstraintSelection;
+using TUnit;
 using Xunit;
 using static MasterMind.CodeColor;
 
 public class ResponseConstraintTests
 {
-    [Fact]
+    [Test]
     public void Nodes()
     {
         ResponseConstraint constraint = new ResponseConstraint(new CodeColor[Rules.CodeSize], default);
         Assert.Same(Rules.Nodes, constraint.Nodes);
     }
 
-    [Fact]
+    [Test]
     public void Ctor_RejectsGuessOfWrongSize()
     {
         ArgumentException ex = Assert.Throws<ArgumentException>(() => new ResponseConstraint(new CodeColor[Rules.CodeSize + 1], default));
         Assert.Equal("guess", ex.ParamName);
     }
 
-    [Fact]
+    [Test]
     public void Equality()
     {
         ResponseConstraint constraint1a = new ResponseConstraint(new CodeColor[Rules.CodeSize], default);
@@ -36,7 +37,7 @@ public class ResponseConstraintTests
         Assert.NotEqual(constraint2, constraint3);
     }
 
-    [Fact]
+    [Test]
     public void Equality_Object()
     {
         ResponseConstraint constraint1a = new ResponseConstraint(new CodeColor[Rules.CodeSize], default);
@@ -46,7 +47,7 @@ public class ResponseConstraintTests
         Assert.False(constraint1a.Equals((object)constraint2));
     }
 
-    [Fact]
+    [Test]
     public void GetHashCode_Test()
     {
         ResponseConstraint constraint1a = new ResponseConstraint(new CodeColor[Rules.CodeSize], default);
@@ -56,7 +57,7 @@ public class ResponseConstraintTests
         Assert.NotEqual(constraint1a.GetHashCode(), constraint2.GetHashCode());
     }
 
-    [Fact]
+    [Test]
     public void GetState_CompleteSolution_MatchesResponse()
     {
         ResponseConstraint constraint = new ResponseConstraint(
@@ -67,7 +68,7 @@ public class ResponseConstraintTests
         Assert.Equal(ConstraintStates.Satisfied | ConstraintStates.Resolved, result);
     }
 
-    [Fact]
+    [Test]
     public void GetState_CompleteSolution_RejectsWrongWhiteCount()
     {
         // Bug #1: YOYO must be rejected for WTPM -> 0 red, 1 white.
@@ -80,7 +81,7 @@ public class ResponseConstraintTests
         Assert.False(result.HasFlag(ConstraintStates.Satisfiable));
     }
 
-    [Fact]
+    [Test]
     public void GetState_TwoReds()
     {
         ResponseConstraint constraint = new ResponseConstraint(new[] { Orange, Yellow, Teal, Purple }, new Response { RedCount = 2 });
@@ -96,7 +97,7 @@ public class ResponseConstraintTests
         Assert.False(result.HasFlag(ConstraintStates.Satisfiable));
     }
 
-    [Fact]
+    [Test]
     public void GetState_ZeroMarkers()
     {
         ResponseConstraint constraint = new ResponseConstraint(new[] { Purple, Teal, Orange, Magenta }, default);
@@ -111,7 +112,7 @@ public class ResponseConstraintTests
         Assert.Equal(ConstraintStates.Satisfied | ConstraintStates.Resolved, constraint.GetState(GetScenario(White, White, White, White)));
     }
 
-    [Fact]
+    [Test]
     public void Resolve_ForcesUniqueCompletion()
     {
         // Guess TPWM scored 3 red / 0 white. With T,P already correct and position 2 known wrong,
@@ -126,7 +127,7 @@ public class ResponseConstraintTests
         Assert.Equal(Magenta, scenario[3]);
     }
 
-    [Fact]
+    [Test]
     public void Resolve_NoForceWhenMultipleOptionsRemain()
     {
         ResponseConstraint constraint = new ResponseConstraint(

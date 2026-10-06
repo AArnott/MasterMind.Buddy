@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>net8.0</TargetFrameworks>
+    <TargetFramework>net10.0</TargetFramework>
     <OutputType>Exe</OutputType>
     <RootNamespace />
   </PropertyGroup>
@@ -8,7 +8,10 @@
     <ProjectReference Include="..\..\src\MasterMind\MasterMind.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="xunit.v3.mtp-v2" />
+</ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="TUnit.Engine" />
+    <PackageReference Include="xunit.v3.assert.aot" Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)','net9.0'))" />
+    <PackageReference Include="xunit.v3.assert" Condition="!$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)','net9.0'))" />
   </ItemGroup>
 </Project>
-

@@ -10,12 +10,11 @@ using Xunit;
 
 public abstract class TestBase
 {
-    public TestBase(ITestOutputHelper logger)
+    public TestBase()
     {
-        this.Logger = logger;
     }
 
-    public ITestOutputHelper Logger { get; }
+    public DefaultLogger Logger => TestContext.Current?.GetDefaultLogger() ?? throw new InvalidOperationException();
 
     public void PrintPossibleSolutionsSimple(SolutionBuilder<CodeColor>.SolutionsAnalysis analysis)
     {
@@ -63,6 +62,6 @@ public abstract class TestBase
 
         stringBuilder.AppendFormat(CultureInfo.CurrentCulture, " ({0} possibilities)", analysis.ViableSolutionsFound);
 
-        this.Logger.WriteLine(stringBuilder.ToString());
+        this.Logger.LogInformation(stringBuilder.ToString());
     }
 }
