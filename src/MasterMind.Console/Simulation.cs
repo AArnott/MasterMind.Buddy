@@ -339,7 +339,7 @@ internal static class Simulation
         Span<char> chars = stackalloc char[code.Length];
         for (int i = 0; i < code.Length; i++)
         {
-            chars[i] = code[i].ToString()![0];
+            chars[i] = code[i].ToString()[0];
         }
 
         return new string(chars);
