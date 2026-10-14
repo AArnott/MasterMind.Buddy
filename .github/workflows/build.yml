@@ -67,3 +67,10 @@ jobs:
       shell: pwsh
       timeout-minutes: 3
 
+  docs:
+    name: 📃 Docs
+    runs-on: ubuntu-26.04
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - name: 🔗 Markup Link Checker (mlc)
+      uses: becheran/mlc@b0d0d353e04fcbcfd1d86716103d78a61e5b25dd # v1.2.2
