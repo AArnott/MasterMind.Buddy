@@ -17,7 +17,7 @@
 
 * There should generally be one test project (under the `test` directory) per shipping project (under the `src` directory). Test projects are named after the project being tested with a `.Tests` suffix.
 * Tests use TUnit with Microsoft.Testing.Platform (MTP v2), while retaining xUnit assertions. Traditional VSTest `--filter` syntax does NOT work.
-* Some tests are known to be unstable. When running tests, you should skip the unstable ones by using `-- --treenode-filter "/**[Category!=FailsInCloudTest]"`.
+* Some tests are known to be unstable. When running tests, you should skip the unstable ones by using `-- --treenode-filter "/*/*/*/*[TestCategory!=FailsInCloudTest]"`.
 
 ### Running Tests
 
@@ -53,13 +53,13 @@ dotnet test --project test/MasterMind.Tests/MasterMind.Tests.csproj --no-build -
 
 **Run tests for a specific framework only**:
 ```bash
-dotnet test --project test/MasterMind.Tests/MasterMind.Tests.csproj --no-build -c Release --framework net8.0
+dotnet test --project test/MasterMind.Tests/MasterMind.Tests.csproj --no-build -c Release --framework net10.0
 ```
 
 **List all available tests without running them**:
 ```bash
 cd test/MasterMind.Tests
-dotnet run --no-build -c Release --framework net8.0 -- --list-tests
+dotnet run --no-build -c Release --framework net10.0 -- --list-tests
 ```
 
 **Key points about test filtering with TUnit / MTP v2**:
